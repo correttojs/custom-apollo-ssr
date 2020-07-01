@@ -49,25 +49,25 @@ const execQuery = async <TVariables = OperationVariables>(
     "content-type": "application/json",
     ...customHeaders,
   };
-  let data = await fetch(url.toString(), {
-    headers,
-    method: "GET",
-  }).then((r) => r.json());
+  // let data = await fetch(url.toString(), {
+  //   headers,
+  //   method: "GET",
+  // }).then((r) => r.json());
 
-  if (
-    data.errors?.[0]?.message === "PersistedQueryNotFound" ||
-    data.errors?.[0]?.message === "PersistedQueryNotSupported"
-  ) {
-    data = await fetch(GQL_ENDPOINT, {
-      headers,
-      body: JSON.stringify({
-        query: print(query),
-        operationName,
-        variables: options.variables,
-      }),
-      method: "POST",
-    }).then((r) => r.json());
-  }
+  // if (
+  //   data.errors?.[0]?.message === "PersistedQueryNotFound" ||
+  //   data.errors?.[0]?.message === "PersistedQueryNotSupported"
+  // ) {
+  let data = await fetch(GQL_ENDPOINT, {
+    headers,
+    body: JSON.stringify({
+      query: print(query),
+      operationName,
+      variables: options.variables,
+    }),
+    method: "POST",
+  }).then((r) => r.json());
+  // }
   return data;
 };
 
@@ -82,6 +82,7 @@ export const createApolloClientSSR = (customHeaders: {
     ) => {
       try {
         const data = await execQuery(options, customHeaders);
+
         apolloClient.cache.write({
           result: data.data,
           dataId: "ROOT_QUERY",
@@ -90,6 +91,7 @@ export const createApolloClientSSR = (customHeaders: {
         });
         return { data: data.data, error: data.errors };
       } catch (error) {
+        console.log(error);
         return { error, data: null };
       }
     },
