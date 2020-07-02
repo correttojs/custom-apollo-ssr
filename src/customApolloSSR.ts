@@ -28,7 +28,8 @@ export const getApollo = (initialState?: NormalizedCacheObject) => {
 
 const execQuery = async <TVariables = OperationVariables>(
   options: QueryOptions<TVariables>,
-  customHeaders: { [key: string]: string }
+  customHeaders: { [key: string]: string },
+  persistedQuery: boolean = false
 ) => {
   const url = new URL(GQL_ENDPOINT);
   const query = addTypenameToDocument(options.query);
@@ -49,31 +50,38 @@ const execQuery = async <TVariables = OperationVariables>(
     "content-type": "application/json",
     ...customHeaders,
   };
-  // let data = await fetch(url.toString(), {
-  //   headers,
-  //   method: "GET",
-  // }).then((r) => r.json());
+  let data;
+  if (persistedQuery) {
+    data = await fetch(url.toString(), {
+      headers,
+      method: "GET",
+    }).then((r) => r.json());
+  }
 
-  // if (
-  //   data.errors?.[0]?.message === "PersistedQueryNotFound" ||
-  //   data.errors?.[0]?.message === "PersistedQueryNotSupported"
-  // ) {
-  let data = await fetch(GQL_ENDPOINT, {
-    headers,
-    body: JSON.stringify({
-      query: print(query),
-      operationName,
-      variables: options.variables,
-    }),
-    method: "POST",
-  }).then((r) => r.json());
-  // }
+  if (
+    !persistedQuery ||
+    data.errors?.[0]?.message === "PersistedQueryNotFound" ||
+    data.errors?.[0]?.message === "PersistedQueryNotSupported"
+  ) {
+    data = await fetch(GQL_ENDPOINT, {
+      headers,
+      body: JSON.stringify({
+        query: print(query),
+        operationName,
+        variables: options.variables,
+      }),
+      method: "POST",
+    }).then((r) => r.json());
+  }
   return data;
 };
 
-export const createApolloClientSSR = (customHeaders: {
-  [key: string]: string;
-}) => {
+export const createApolloClientSSR = (
+  customHeaders: {
+    [key: string]: string;
+  },
+  persistedQuery: boolean = false
+) => {
   const apolloClient = getApollo({});
 
   return {
@@ -81,7 +89,7 @@ export const createApolloClientSSR = (customHeaders: {
       options: QueryOptions<TVariables>
     ) => {
       try {
-        const data = await execQuery(options, customHeaders);
+        const data = await execQuery(options, customHeaders, persistedQuery);
 
         apolloClient.cache.write({
           result: data.data,
